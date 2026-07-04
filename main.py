@@ -33,7 +33,7 @@ def send_text(account_instance: str, phone_number: str, text: str) -> dict:
     
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
         text: The message to send to the user in WhatsApp in a single bubble (eg. How can I help you today?)
     """
     try:
@@ -41,7 +41,7 @@ def send_text(account_instance: str, phone_number: str, text: str) -> dict:
             f"{EVOLUTION_API_URL}/message/sendText/{account_instance}",
             headers={"apikey": EVOLUTION_API_KEY},
             json={
-                "number": f"{phone_number}@s.whatsapp.net",
+                "number": phone_number,
                 "text": text
             }
         )
