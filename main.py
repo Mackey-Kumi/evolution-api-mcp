@@ -385,6 +385,84 @@ def send_cta_url(
 
 
 
+@mcp.tool()
+def send_list_message(
+    account_instance: str, 
+    phone_number: str, 
+    title: str,
+    text_content: str, 
+    button_label: str, 
+    sections: list[dict], 
+    footer: Optional[str] = None
+) -> dict:
+    """
+    Send a WhatsApp interactive list message with selectable rows grouped into sections.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        title: A short, bold header text displayed at the very top of the list message.
+        text_content: The main message body shown above the list button (e.g., "Please select an option below").
+        button_label: The label on the button that the user taps to open the list menu (e.g., "View Options").
+        sections: A list of sections, each containing a title and rows. Each section is a dict with a 'title' (str) and 'rows' (list of dicts). 
+                  Each row must have an 'id' and 'title', and an optional 'description'. MAXIMUM LIMIT OF 10 ROWS across all sections combined. 
+                  Example: [{"title": "Support", "rows": [{"id": "track-order", "title": "Track My Order", "description": "Get real-time updates"}]}]
+        footer: Optional small text shown below the list message.
+    """
+    try:
+        # Programmatically remap the standard 'id' field to Evolution API's required 'rowId' field
+        formatted_sections = []
+        for section in sections:
+            formatted_rows = []
+            for row in section.get("rows", []):
+                formatted_row = {
+                    "title": row.get("title"),
+                    "rowId": row.get("id"),  # Remap from 'id' to 'rowId' safely
+                }
+                if "description" in row:
+                    formatted_row["description"] = row.get("description")
+                formatted_rows.append(formatted_row)
+            
+            formatted_sections.append({
+                "title": section.get("title"),
+                "rows": formatted_rows
+            })
+
+        json_payload = {
+            "number": phone_number,
+            "title": title,
+            "description": text_content,
+            "buttonText": button_label,
+            "sections": formatted_sections
+        }
+
+        if footer:
+            json_payload["footerText"] = footer
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendList/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=json_payload
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+
+    
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
