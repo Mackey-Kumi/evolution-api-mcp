@@ -349,11 +349,13 @@ def send_cta_url(
             "number": phone_number,
             "title": title,
             "description": text_content,
-            "buttons": {
+            "buttons": [
+                {
                 "type": "url",
-                "displayText": button_label,
+                "displayText": button_label[:20],
                 "url": button_url
                 }
+            ]
         }
 
         if footer:
