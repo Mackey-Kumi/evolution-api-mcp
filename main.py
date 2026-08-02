@@ -137,8 +137,6 @@ def send_video(account_instance: str, phone_number: str, video_url: str, caption
             }
         )
         response.raise_for_status()
-        
-        
         raw_data = response.json()
         
         # Safely extract only what the model needs to confirm delivery
@@ -154,6 +152,45 @@ def send_video(account_instance: str, phone_number: str, video_url: str, caption
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+
+@mcp.tool()
+def send_voice_note(account_instance: str, phone_number: str, audio_url: str) -> dict:
+    """
+    Send a whatsApp native voice note to the user.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        audio_url: The URL to the audio you want to send as voice note.
+    """
+
+    try:
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+                "number": phone_number,
+                "audio": audio_url #  "audio/ogg; codecs=opus"
+            }
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+        
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 
 if __name__ == '__main__':
