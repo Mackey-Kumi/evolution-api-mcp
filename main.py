@@ -84,6 +84,38 @@ def send_image(account_instance: str, phone_number: str, image_url: str, caption
 
 
 
+
+@mcp.tool()
+def send_video(account_instance: str, phone_number: str, video_url: str, caption: Optional[str] = None) -> dict:
+    """
+    Send a single WhatsApp video with an optional message caption
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        video_url: The URL to the video you want to send.
+        caption: This is an optional message you can send together with the video.
+    """
+
+    try:
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+                "number": phone_number,
+                "mediatype": "video",
+                "mimetype": "video/mp4",
+                "caption": caption,
+                "media": video_url
+            }
+        )
+        response.raise_for_status()
+        return {"success": True, "data": response.json()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
     app = mcp.http_app(transport="streamable-http", middleware=[Middleware(APIKeyMiddleware)])
