@@ -521,6 +521,88 @@ def send_carousel(
         return {"success": False, "error": str(e)}
 
 
+
+@mcp.tool()
+def find_messages(
+    account_instance: str,
+    remote_jid: str,
+    page: int = 1,
+    offset: int = 10
+) -> dict:
+    """
+    Query and retrieve historical message records for a specific conversation chat thread.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account instance.
+        remote_jid: The target user's chat identifier with suffix (e.g., "233596603296@s.whatsapp.net" or "264724990148861@lid").
+        page: The page number to retrieve for pagination. Defaults to 1.
+        offset: The number of message records to return per page. Defaults to 10.
+    """
+    try:
+        payload = {
+            "where": {
+                "key": {
+                    "remoteJid": remote_jid
+                }
+            },
+            "page": page,
+            "offset": offset
+        }
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/chat/findMessages/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=payload
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+
+        # Extract root-level pagination info
+        message_data = raw_data.get("messages", {})
+        pagination_info = {
+            "total_records": message_data.get("total", 0),
+            "total_pages": message_data.get("pages", 0),
+            "current_page": message_data.get("currentPage", 1)
+        }
+
+        # Structure only the vital message histories
+        structured_records = []
+        for record in message_data.get("records", []):
+            msg_type = record.get("messageType", "unknown")
+            msg_content = record.get("message", {})
+            
+            # Extract readable content based on the message type context
+            text_body = ""
+            if msg_type == "conversation":
+                text_body = msg_content.get("conversation", "")
+            elif msg_type == "extendedTextMessage":
+                text_body = msg_content.get("extendedTextMessage", {}).get("text", "")
+            elif msg_type == "interactiveMessage":
+                text_body = msg_content.get("interactiveMessage", {}).get("body", {}).get("text", "")
+            elif msg_type == "listMessage":
+                text_body = msg_content.get("listMessage", {}).get("description", "")
+
+            structured_records.append({
+                "message_id": record.get("key", {}).get("id"),
+                "from_me": record.get("key", {}).get("fromMe", False),
+                "timestamp": record.get("messageTimestamp"),
+                "message_type": msg_type,
+                "text_content": text_body,
+                "status": record.get("MessageUpdate", [{}])[-1].get("status", "SENT") if record.get("MessageUpdate") else "SENT"
+            })
+
+        return {
+            "success": True, 
+            "pagination": pagination_info, 
+            "messages": structured_records
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
     app = mcp.http_app(transport="streamable-http", middleware=[Middleware(APIKeyMiddleware)])
