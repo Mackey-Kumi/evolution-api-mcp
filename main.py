@@ -27,7 +27,11 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
 
 @mcp.tool()
-def send_text(account_instance: str, phone_number: str, text: str) -> dict:
+def send_text(
+    account_instance: str, 
+    phone_number: str, 
+    text: str
+    ) -> dict:
     """
     Send a single WhatsApp bubble message
     
@@ -68,7 +72,12 @@ def send_text(account_instance: str, phone_number: str, text: str) -> dict:
 
 
 @mcp.tool()
-def send_image(account_instance: str, phone_number: str, image_url: str, caption: Optional[str] = None) -> dict:
+def send_image(
+    account_instance: str, 
+    phone_number: str, 
+    image_url: str, 
+    caption: Optional[str] = None
+    ) -> dict:
     """
     Send a single WhatsApp image with an optional message caption
 
@@ -113,7 +122,12 @@ def send_image(account_instance: str, phone_number: str, image_url: str, caption
 
 
 @mcp.tool()
-def send_video(account_instance: str, phone_number: str, video_url: str, caption: Optional[str] = None) -> dict:
+def send_video(
+    account_instance: str, 
+    phone_number: str, 
+    video_url: str, 
+    caption: Optional[str] = None
+    ) -> dict:
     """
     Send a single WhatsApp video with an optional message caption
 
@@ -156,7 +170,11 @@ def send_video(account_instance: str, phone_number: str, video_url: str, caption
 
 
 @mcp.tool()
-def send_voice_note(account_instance: str, phone_number: str, audio_url: str) -> dict:
+def send_voice_note(
+    account_instance: str, 
+    phone_number: str, 
+    audio_url: str
+    ) -> dict:
     """
     Send a whatsApp native voice note to the user.
 
@@ -194,7 +212,12 @@ def send_voice_note(account_instance: str, phone_number: str, audio_url: str) ->
 
 
 @mcp.tool()
-def react_to_message(account_instance: str, phone_number: str, message_id: str, emoji: str) -> dict:
+def react_to_message(
+    account_instance: str, 
+    phone_number: str, 
+    message_id: str, 
+    emoji: str
+    ) -> dict:
     """
     React to a WhatsApp message with an emoji. This can be a user message or your own.
 
@@ -224,6 +247,69 @@ def react_to_message(account_instance: str, phone_number: str, message_id: str, 
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+
+@mcp.tool()
+def send_quick_replies(
+    account_instance: str, 
+    phone_number: str,
+    title: str, 
+    text_content: str, 
+    reply_buttons: list[dict],
+    footer: Optional[str] = None
+) -> dict:
+    """
+    Send a WhatsApp message with up to 3 quick reply buttons.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        title: A short, bold header text displayed at the very top of the message (⚠️ Do not bold, it would be done automatically). Example: "Order Status Update")
+        text_content: The main text message body displayed in the middle above the buttons.
+        reply_buttons: A list of quick reply buttons. Each button is a dictionary with two keys:
+                       'displayText' (⚠️ MAXIMUM 20 CHARACTERS, including spaces) and 'id' (the return value).
+                       Maximum 3 buttons allowed.
+                       Example: [{"displayText": "Small Package", "id": "small-package"}, {"displayText": "Large Package", "id": "large-package"}].
+        footer: An optional line of small, muted gray text displayed below the main body or buttons (e.g., "Reply by clicking a button").
+    """
+    try:
+        # Programmatically inject the mandatory 'type': 'reply' into each button
+        formatted_buttons = []
+        for btn in reply_buttons[:3]:  # Enforce max 3 buttons safely
+            formatted_buttons.append({
+                "type": "reply",
+                "displayText": btn.get("displayText", "")[:20],  # Enforce max 20 chars safely
+                "id": btn.get("id", "")
+            })
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+            "number": phone_number,
+            "title": title,
+            "description": text_content,
+            "footer": footer,
+            "buttons": formatted_buttons
+        }
+        )
+
+        response.raise_for_status()
+        raw_data = response.json()
+
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 
 
