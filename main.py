@@ -78,7 +78,20 @@ def send_image(account_instance: str, phone_number: str, image_url: str, caption
             }
         )
         response.raise_for_status()
-        return {"success": True, "data": response.json()}
+        
+        raw_data = response.json()
+        
+        # Safely extract high-value metadata from the root level
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        
+        return {"success": True, "data": structured_data}
+    
     except Exception as e:
         return {"success": False, "error": str(e)}
 
