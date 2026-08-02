@@ -396,44 +396,32 @@ def send_list_message(
     footer: Optional[str] = None
 ) -> dict:
     """
-    Send a WhatsApp interactive list message with selectable rows grouped into sections.
+    Send an interactive WhatsApp list message with selectable rows grouped into sections natively for the Evolution API.
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
         phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
-        title: A short, bold header text displayed at the very top of the list message.
-        text_content: The main message body shown above the list button (e.g., "Please select an option below").
-        button_label: The label on the button that the user taps to open the list menu (e.g., "View Options").
-        sections: A list of sections, each containing a title and rows. Each section is a dict with a 'title' (str) and 'rows' (list of dicts). 
-                  Each row must have an 'id' and 'title', and an optional 'description'. MAXIMUM LIMIT OF 10 ROWS across all sections combined. 
-                  Example: [{"title": "Support", "rows": [{"id": "track-order", "title": "Track My Order", "description": "Get real-time updates"}]}]
-        footer: Optional small text shown below the list message.
+        title: A short, bold header text displayed at the very top of the list message (e.g., "Main Menu").
+        text_content: The main message description text shown above the list menu button.
+        button_label: The label on the button that the user taps to open the list layout selection menu (e.g., "Click Here").
+        sections: A list of dict sections matching the Evolution API payload natively. Max 10 total rows across all sections combined.
+                  Each section MUST contain:
+                  - 'title': The string category title for the section rows.
+                  - 'rows': A list of row dicts where each row dictionary MUST contain exactly:
+                    * 'title': The visible option text (str).
+                    * 'rowId': The unique string key returned when tapped (str).
+                    * 'description': (Optional) Subtext details for the item.
+                  Example: [{"title": "Select Fruit", "rows": [{"title": "Apple", "rowId": "fruit_apple", "description": "Crisp and sweet"}]}]
+        footer: An optional string line of text shown below the message.
     """
     try:
-        # Programmatically remap the standard 'id' field to Evolution API's required 'rowId' field
-        formatted_sections = []
-        for section in sections:
-            formatted_rows = []
-            for row in section.get("rows", []):
-                formatted_row = {
-                    "title": row.get("title"),
-                    "rowId": row.get("id"),  # Remap from 'id' to 'rowId' safely
-                }
-                if "description" in row:
-                    formatted_row["description"] = row.get("description")
-                formatted_rows.append(formatted_row)
-            
-            formatted_sections.append({
-                "title": section.get("title"),
-                "rows": formatted_rows
-            })
-
+        
         json_payload = {
             "number": phone_number,
             "title": title,
             "description": text_content,
             "buttonText": button_label,
-            "sections": formatted_sections
+            "sections": sections
         }
 
         if footer:
@@ -447,7 +435,6 @@ def send_list_message(
         response.raise_for_status()
         raw_data = response.json()
 
-    
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
             "remote_jid": raw_data.get("key", {}).get("remoteJid"),
