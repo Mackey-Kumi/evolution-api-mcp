@@ -393,7 +393,7 @@ def send_list_message(
     text_content: str, 
     button_label: str, 
     sections: list[dict], 
-    footer: Optional[str] = None
+    footer: str
 ) -> dict:
     """
     Send an interactive WhatsApp list message with selectable rows grouped into sections natively for the Evolution API.
@@ -412,7 +412,7 @@ def send_list_message(
                     * 'rowId': The unique string key returned when tapped (str).
                     * 'description': (Optional) Subtext details for the item.
                   Example: [{"title": "Select Fruit", "rows": [{"title": "Apple", "rowId": "fruit_apple", "description": "Crisp and sweet"}]}]
-        footer: An optional string line of text shown below the message.
+        footer: A string line of helper text shown at the bottom of the message. (e.g., "The button opens a menu to select from").
     """
     try:
         
@@ -421,11 +421,9 @@ def send_list_message(
             "title": title,
             "description": text_content,
             "buttonText": button_label,
+            "footerText": footer,
             "sections": sections
         }
-
-        if footer:
-            json_payload["footerText"] = footer
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendList/{account_instance}",
