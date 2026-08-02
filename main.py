@@ -283,16 +283,23 @@ def send_quick_replies(
                 "id": btn.get("id", "")
             })
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json={
+
+        # Assemble the JSON payload structure
+        json_payload = {
             "number": phone_number,
             "title": title,
             "description": text_content,
-            "footer": footer,
             "buttons": formatted_buttons
         }
+
+        # Only inject the footer if the model actually provided one
+        if footer:
+            json_payload["footer"] = footer
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=json_payload
         )
 
         response.raise_for_status()
