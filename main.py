@@ -111,22 +111,22 @@ def send_video(account_instance: str, phone_number: str, video_url: str, caption
         )
         response.raise_for_status()
         
+        
         raw_data = response.json()
         
         # Safely extract only what the model needs to confirm delivery
         structured_data = {
-            "message_id": raw_data.get("data", {}).get("key", {}).get("id"),
-            "remote_jid": raw_data.get("data", {}).get("key", {}).get("remoteJid"),
-            "status": raw_data.get("data", {}).get("status"),
-            "instance_id": raw_data.get("data", {}).get("instanceId"),
-            "timestamp": raw_data.get("data", {}).get("messageTimestamp")
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
         }
         
         return {"success": True, "data": structured_data}
-        
+
     except Exception as e:
         return {"success": False, "error": str(e)}
-
 
 
 if __name__ == '__main__':
