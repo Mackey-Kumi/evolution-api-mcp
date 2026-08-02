@@ -219,17 +219,8 @@ def react_to_message(account_instance: str, phone_number: str, message_id: str, 
             }
         )
         response.raise_for_status()
-        raw_data = response.json()
         
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
-        }
-        
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": f"Reacted to {message_id} successfully with {emoji}"}
 
     except Exception as e:
         return {"success": False, "error": str(e)}
