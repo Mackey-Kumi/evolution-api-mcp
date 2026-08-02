@@ -193,6 +193,49 @@ def send_voice_note(account_instance: str, phone_number: str, audio_url: str) ->
 
 
 
+@mcp.tool()
+def react_to_message(account_instance: str, phone_number: str, message_id: str, emoji: str) -> dict:
+    """
+    React to a WhatsApp message with an emoji. This can be a user message or your own.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        message_id: The ID of the message you want to react to.
+        emoji: A single emoji you want to use to react to the message. 
+    """
+
+    try:
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendReaction/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+                "key": {
+                "remoteJid": phone_number, 
+                "fromMe": True,
+                "id": message_id
+                },
+                "reaction": emoji
+            }
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+        
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
     app = mcp.http_app(transport="streamable-http", middleware=[Middleware(APIKeyMiddleware)])
