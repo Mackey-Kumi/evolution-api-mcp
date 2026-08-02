@@ -446,7 +446,79 @@ def send_list_message(
         return {"success": False, "error": str(e)}
 
 
+@mcp.tool()
+def send_carousel(
+    account_instance: str, 
+    phone_number: str,
+    main_body: str,
+    cards: list[dict]
+) -> dict:
+    """
+    Send a swipeable WhatsApp carousel containing up to 10 product/info cards. 
+    Each card can have up to 3 quick reply action buttons.
 
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        main_body: The text message intro shown above the whole carousel slider layout (e.g., "Check out this week's catalog!").
+        cards: A list of dict cards. MAXIMUM 10 cards allowed. 
+               Each card dictionary MUST contain:
+               - 'body': The primary message body text for this card slide.
+               - 'footer': A mandatory string line text shown at the bottom of the card (e.g., price or category).
+               - 'imageUrl': Direct image web address shown on the card layout.
+               - 'buttons': A list of quick reply button dictionaries. MAXIMUM 3 buttons per card.
+                 Each button dict must contain exactly:
+                 * 'text': Visible label text on the card button (MAX 20 CHARACTERS).
+                 * 'id': Unique tracking key string returned when clicked.
+               Example: [{"body": "Product A", "footer": "$99.00", "imageUrl": "https://picsum.photos/seed/a/600/400", "buttons": [{"text": "Buy Now", "id": "buy_a"}]}]
+    """
+    try:
+        formatted_cards = []
+        
+        # Enforce WhatsApp's native maximum limit of 10 slider cards safely
+        for card in cards[:10]:
+            formatted_buttons = []
+            
+            # Enforce WhatsApp's native maximum limit of 3 quick replies per card card
+            for btn in card.get("buttons", [])[:3]:
+                formatted_buttons.append({
+                    "type": "reply",
+                    "displayText": str(btn.get("text", ""))[:20], # Strict 20 char truncation guard
+                    "id": str(btn.get("id", ""))
+                })
+                
+            formatted_cards.append({
+                "body": card.get("body"),
+                "footer": card.get("footer"),
+                "imageUrl": card.get("imageUrl"),
+                "buttons": formatted_buttons
+            })
+
+        json_payload = {
+            "number": phone_number,
+            "body": main_body,
+            "cards": formatted_cards
+        }
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendCarousel/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=json_payload
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 if __name__ == '__main__':
