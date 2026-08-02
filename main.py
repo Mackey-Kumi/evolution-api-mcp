@@ -320,6 +320,70 @@ def send_quick_replies(
 
 
 
+@mcp.tool()
+def send_cta_url(
+    account_instance: str, 
+    phone_number: str,
+    title: str, 
+    text_content: str, 
+    button_label: str,
+    button_url: str,
+    footer: Optional[str] = None
+) -> dict:
+    """
+    Send a WhatsApp message with a single clickable Call-To-Action (CTA) URL button.
+    
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        title: A short, bold header text displayed at the very top of the message (⚠️ Do not bold, it would be done automatically). Example: "Order Status Update")
+        text_content: The main text message body displayed in the middle above the cta button.
+        button_label: The text inside the action button (MAX 20 CHARACTERS). E.g., "Pay Invoice".
+        button_url: This is the URL to the page that would open in the browser when clicked. E.g., "https://checkout.stripe.com/...".
+        footer: An optional line of small, muted gray text displayed below the main body or buttons (e.g., "Clicking takes you to the payment page")
+    """
+
+    try:
+        # Assemble the JSON payload structure
+        json_payload = {
+            "number": phone_number,
+            "title": title,
+            "description": text_content,
+            "buttons": {
+                "type": "url",
+                "displayText": button_label,
+                "url": button_url
+                }
+        }
+
+        if footer:
+            json_payload["footer"] = footer
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=json_payload
+        )
+
+        response.raise_for_status()
+        raw_data = response.json()
+
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": raw_data.get("messageTimestamp")
+        }
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}    
+
+
+
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
     app = mcp.http_app(transport="streamable-http", middleware=[Middleware(APIKeyMiddleware)])
