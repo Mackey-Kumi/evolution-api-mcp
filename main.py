@@ -29,7 +29,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 @mcp.tool()
 def send_text(
     account_instance: str, 
-    phone_number: str, 
+    whatsapp_id: str, 
     text: str
     ) -> dict:
     """
@@ -37,7 +37,7 @@ def send_text(
     
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         text: The message to send to the user in WhatsApp in a single bubble (eg. How can I help you today?)
     """
     try:
@@ -45,7 +45,7 @@ def send_text(
             f"{EVOLUTION_API_URL}/message/sendText/{account_instance}",
             headers={"apikey": EVOLUTION_API_KEY},
             json={
-                "number": phone_number,
+                "number": whatsapp_id,
                 "text": text
             }
         )
@@ -57,7 +57,7 @@ def send_text(
         
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -74,7 +74,7 @@ def send_text(
 @mcp.tool()
 def send_image(
     account_instance: str, 
-    phone_number: str, 
+    whatsapp_id: str, 
     image_url: str, 
     caption: Optional[str] = None
     ) -> dict:
@@ -83,7 +83,7 @@ def send_image(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         image_url: The URL to the image you want to send.
         caption: This is an optional message you can send together with the image.
     """
@@ -93,7 +93,7 @@ def send_image(
             f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
             headers={"apikey": EVOLUTION_API_KEY},
             json={
-                "number": phone_number,
+                "number": whatsapp_id,
                 "mediatype": "image",
                 "mimetype": "image/png",
                 "caption": caption,
@@ -107,7 +107,7 @@ def send_image(
         # Safely extract high-value metadata from the root level
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -124,7 +124,7 @@ def send_image(
 @mcp.tool()
 def send_video(
     account_instance: str, 
-    phone_number: str, 
+    whatsapp_id: str, 
     video_url: str, 
     caption: Optional[str] = None
     ) -> dict:
@@ -133,7 +133,7 @@ def send_video(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         video_url: The URL to the video you want to send.
         caption: This is an optional message you can send together with the video.
     """
@@ -143,7 +143,7 @@ def send_video(
             f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
             headers={"apikey": EVOLUTION_API_KEY},
             json={
-                "number": phone_number,
+                "number": whatsapp_id,
                 "mediatype": "video",
                 "mimetype": "video/mp4",
                 "caption": caption,
@@ -156,7 +156,7 @@ def send_video(
         # Safely extract only what the model needs to confirm delivery
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -172,7 +172,7 @@ def send_video(
 @mcp.tool()
 def send_voice_note(
     account_instance: str, 
-    phone_number: str, 
+    whatsapp_id: str, 
     audio_url: str
     ) -> dict:
     """
@@ -180,7 +180,7 @@ def send_voice_note(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         audio_url: The URL to the audio you want to send as voice note.
     """
 
@@ -189,7 +189,7 @@ def send_voice_note(
             f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{account_instance}",
             headers={"apikey": EVOLUTION_API_KEY},
             json={
-                "number": phone_number,
+                "number": whatsapp_id,
                 "audio": audio_url #  "audio/ogg; codecs=opus"
             }
         )
@@ -198,7 +198,7 @@ def send_voice_note(
         
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -214,7 +214,7 @@ def send_voice_note(
 @mcp.tool()
 def react_to_message(
     account_instance: str, 
-    phone_number: str, 
+    whatsapp_id: str, 
     message_id: str, 
     emoji: str
     ) -> dict:
@@ -223,7 +223,7 @@ def react_to_message(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         message_id: The ID of the message you want to react to.
         emoji: A single emoji you want to use to react to the message. 
     """
@@ -234,7 +234,7 @@ def react_to_message(
             headers={"apikey": EVOLUTION_API_KEY},
             json={
                 "key": {
-                "remoteJid": phone_number, 
+                "remoteJid": whatsapp_id, 
                 "fromMe": True,
                 "id": message_id
                 },
@@ -253,7 +253,7 @@ def react_to_message(
 @mcp.tool()
 def send_quick_replies(
     account_instance: str, 
-    phone_number: str,
+    whatsapp_id: str,
     title: str, 
     text_content: str, 
     reply_buttons: list[dict],
@@ -264,7 +264,7 @@ def send_quick_replies(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         title: A short, bold header text displayed at the very top of the message (⚠️ Do not bold, it would be done automatically). Example: "Order Status Update")
         text_content: The main text message body displayed in the middle above the buttons.
         reply_buttons: A list of quick reply buttons. Each button is a dictionary with two keys:
@@ -286,7 +286,7 @@ def send_quick_replies(
 
         # Assemble the JSON payload structure
         json_payload = {
-            "number": phone_number,
+            "number": whatsapp_id,
             "title": title,
             "description": text_content,
             "buttons": formatted_buttons
@@ -307,7 +307,7 @@ def send_quick_replies(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -323,7 +323,7 @@ def send_quick_replies(
 @mcp.tool()
 def send_cta_url(
     account_instance: str, 
-    phone_number: str,
+    whatsapp_id: str,
     title: str, 
     text_content: str, 
     button_label: str,
@@ -335,7 +335,7 @@ def send_cta_url(
     
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         title: A short, bold header text displayed at the very top of the message (⚠️ Do not bold, it would be done automatically). Example: "Order Status Update")
         text_content: The main text message body displayed in the middle above the cta button.
         button_label: The text inside the action button (MAX 20 CHARACTERS). E.g., "Pay Invoice".
@@ -346,7 +346,7 @@ def send_cta_url(
     try:
         # Assemble the JSON payload structure
         json_payload = {
-            "number": phone_number,
+            "number": whatsapp_id,
             "title": title,
             "description": text_content,
             "buttons": [
@@ -372,7 +372,7 @@ def send_cta_url(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -388,7 +388,7 @@ def send_cta_url(
 @mcp.tool()
 def send_list_message(
     account_instance: str, 
-    phone_number: str, 
+    whatsapp_id: str, 
     title: str,
     text_content: str, 
     button_label: str, 
@@ -400,7 +400,7 @@ def send_list_message(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         title: A short, bold header text displayed at the very top of the list message (e.g., "Main Menu").
         text_content: The main message description text shown above the list menu button.
         button_label: The label on the button that the user taps to open the list layout selection menu (e.g., "Click Here").
@@ -417,7 +417,7 @@ def send_list_message(
     try:
         
         json_payload = {
-            "number": phone_number,
+            "number": whatsapp_id,
             "title": title,
             "description": text_content,
             "buttonText": button_label,
@@ -435,7 +435,7 @@ def send_list_message(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -449,7 +449,7 @@ def send_list_message(
 @mcp.tool()
 def send_carousel(
     account_instance: str, 
-    phone_number: str,
+    whatsapp_id: str,
     main_body: str,
     cards: list[dict]
 ) -> dict:
@@ -459,7 +459,7 @@ def send_carousel(
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
-        phone_number: The user's WhatsApp number with country code, no '+' or leading zeros. This is provided to you in your prompt. Example: 233XXXXXXXXX@s.whatsapp.net
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         main_body: The text message intro shown above the whole carousel slider layout (e.g., "Check out this week's catalog!").
         cards: A list of dict cards. MAXIMUM 10 cards allowed. 
                Each card dictionary MUST contain:
@@ -495,7 +495,7 @@ def send_carousel(
             })
 
         json_payload = {
-            "number": phone_number,
+            "number": whatsapp_id,
             "body": main_body,
             "cards": formatted_cards
         }
@@ -510,7 +510,7 @@ def send_carousel(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "remote_jid": raw_data.get("key", {}).get("remoteJid"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
             "timestamp": raw_data.get("messageTimestamp")
@@ -523,9 +523,53 @@ def send_carousel(
 
 
 @mcp.tool()
+def get_whatsapp_number(
+    account_instance: str,
+    whatsapp_id: str
+) -> dict:
+    """
+    Resolve the user's WhatsApp ID (@lid) to retrieve the contact's real phone number
+    and whether they are a WhatsApp Business account.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
+    """
+    try:
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/chat/fetchBusinessProfile/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={"number": whatsapp_id}
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+
+        phone_number = None
+        jid = raw_data.get("jid", "")
+        if jid:
+            phone_number = jid.replace("@s.whatsapp.net", "")
+
+        return {
+            "success": True,
+            "data": {
+                "whatsapp_id": whatsapp_id,
+                "phone_number": phone_number,
+                "is_business": raw_data.get("isBusiness", False),
+                "exists": raw_data.get("exists", False)
+            }
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+
+
+@mcp.tool()
 def find_messages(
     account_instance: str,
-    remote_jid: str,
+    whatsapp_id: str,
     page: int = 1,
     offset: int = 10
 ) -> dict:
@@ -533,8 +577,8 @@ def find_messages(
     Query and retrieve historical message records for a specific conversation chat thread.
 
     Args:
-        account_instance: The unique identifier of the WhatsApp account instance.
-        remote_jid: The target user's chat identifier with suffix (e.g., "233596603296@s.whatsapp.net" or "264724990148861@lid").
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         page: The page number to retrieve for pagination. Defaults to 1.
         offset: The number of message records to return per page. Defaults to 10.
     """
@@ -542,7 +586,7 @@ def find_messages(
         payload = {
             "where": {
                 "key": {
-                    "remoteJid": remote_jid
+                    "remoteJid": whatsapp_id
                 }
             },
             "page": page,
