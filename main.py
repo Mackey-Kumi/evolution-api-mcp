@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -17,6 +18,13 @@ EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY")
 API_KEY = os.getenv("MCP_API_KEY")
 
 mcp = FastMCP("Evolution API MCP")
+
+
+def _to_utc_iso(unix_timestamp) -> Optional[str]:
+    """Convert a Unix timestamp (seconds) from the Evolution API into a UTC ISO 8601 string."""
+    if unix_timestamp is None:
+        return None
+    return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).isoformat()
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -67,7 +75,7 @@ def send_text(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
         return {"success": True, "data": structured_data}
@@ -126,7 +134,7 @@ def send_image(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
         return {"success": True, "data": structured_data}
@@ -184,7 +192,7 @@ def send_video(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
         return {"success": True, "data": structured_data}
@@ -233,7 +241,7 @@ def send_voice_note(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
         return {"success": True, "data": structured_data}
@@ -347,7 +355,7 @@ def send_quick_replies(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
 
@@ -417,7 +425,7 @@ def send_cta_url(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
 
@@ -485,7 +493,7 @@ def send_list_message(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
 
@@ -560,7 +568,7 @@ def send_carousel(
             "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
             "status": raw_data.get("status"),
             "instance_id": raw_data.get("instanceId"),
-            "timestamp": raw_data.get("messageTimestamp")
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
 
@@ -676,7 +684,7 @@ def find_messages(
             structured_records.append({
                 "message_id": record.get("key", {}).get("id"),
                 "from_me": record.get("key", {}).get("fromMe", False),
-                "timestamp": record.get("messageTimestamp"),
+                "timestamp": _to_utc_iso(record.get("messageTimestamp")),
                 "message_type": msg_type,
                 "text_content": text_body,
                 "status": record.get("MessageUpdate", [{}])[-1].get("status", "SENT") if record.get("MessageUpdate") else "SENT"
