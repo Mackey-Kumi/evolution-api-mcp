@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
@@ -428,6 +429,47 @@ def send_contact_card(
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+
+def _fire_typing_indicator(account_instance: str, whatsapp_id: str, delay_ms: int) -> None:
+    try:
+        requests.post(
+            f"{EVOLUTION_API_URL}/chat/sendPresence/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+                "number": whatsapp_id,
+                "delay": delay_ms,
+                "presence": "composing"
+            },
+            timeout=(delay_ms / 1000) + 15
+        )
+    except Exception:
+        pass
+
+
+@mcp.tool()
+def send_typing_indicator(
+    account_instance: str,
+    whatsapp_id: str
+    ) -> dict:
+    """
+    Show a "typing..." indicator to the user for up to 45 seconds, or until your next message
+    arrives, whichever happens first. Call this right before you start composing your actual
+    reply so the indicator has time on screen while you work.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
+    """
+    thread = threading.Thread(
+        target=_fire_typing_indicator,
+        args=(account_instance, whatsapp_id, 45000),
+        daemon=True
+    )
+    thread.start()
+
+    return {"success": True, "data": "Typing indicator triggered"}
 
 
 
