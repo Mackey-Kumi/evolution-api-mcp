@@ -203,6 +203,69 @@ def send_video(
 
 
 @mcp.tool()
+def send_document(
+    account_instance: str,
+    whatsapp_id: str,
+    document_url: str,
+    file_name: str,
+    caption: Optional[str] = None,
+    message_id: Optional[str] = None
+    ) -> dict:
+    """
+    Send a single WhatsApp PDF document with an optional message caption
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
+        document_url: The URL to the PDF document you want to send.
+        file_name: The file name to display to the recipient (e.g. "invoice.pdf").
+        caption: This is an optional message you can send together with the document.
+        message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+    """
+
+    try:
+        if not file_name.lower().endswith(".pdf"):
+            file_name = f"{file_name}.pdf"
+
+        json_payload = {
+            "number": whatsapp_id,
+            "mediatype": "document",
+            "mimetype": "application/pdf",
+            "fileName": file_name,
+            "media": document_url
+        }
+
+        if caption:
+            json_payload["caption"] = caption
+
+        if message_id:
+            json_payload["quoted"] = {"key": {"id": message_id}}
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=json_payload
+        )
+        response.raise_for_status()
+
+        raw_data = response.json()
+
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
+        }
+
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+@mcp.tool()
 def send_voice_note(
     account_instance: str,
     whatsapp_id: str,
