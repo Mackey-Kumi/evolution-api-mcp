@@ -291,6 +291,147 @@ def react_to_message(
 
 
 @mcp.tool()
+def delete_message(
+    account_instance: str,
+    whatsapp_id: str,
+    message_id: str
+    ) -> dict:
+    """
+    Delete one of your own WhatsApp messages for everyone in the chat.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
+        message_id: The ID of the message you want to delete.
+    """
+
+    try:
+        response = requests.delete(
+            f"{EVOLUTION_API_URL}/chat/deleteMessageForEveryone/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+                "id": message_id,
+                "remoteJid": whatsapp_id,
+                "fromMe": True
+            }
+        )
+        response.raise_for_status()
+
+        return {"success": True, "data": f"Deleted message {message_id} successfully"}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+@mcp.tool()
+def edit_message(
+    account_instance: str,
+    whatsapp_id: str,
+    message_id: str,
+    new_text: str
+    ) -> dict:
+    """
+    Edit the text of one of your own previously sent WhatsApp messages.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
+        message_id: The ID of the message you want to edit.
+        new_text: The new text to replace the message's original content with.
+    """
+
+    try:
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/chat/updateMessage/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={
+                "number": whatsapp_id,
+                "key": {
+                    "remoteJid": whatsapp_id,
+                    "fromMe": True,
+                    "id": message_id
+                },
+                "text": new_text
+            }
+        )
+        response.raise_for_status()
+
+        return {"success": True, "data": f"Updated message {message_id} successfully"}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+@mcp.tool()
+def send_contact_card(
+    account_instance: str,
+    whatsapp_id: str,
+    full_name: str,
+    phone_number: str,
+    organization: Optional[str] = None,
+    email: Optional[str] = None,
+    url: Optional[str] = None
+    ) -> dict:
+    """
+    Send a WhatsApp contact card to the user.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
+        full_name: The full name of the contact being shared.
+        phone_number: The phone number of the contact being shared (not the recipient), digits only without a leading + or spaces. Example: 233596603296
+        organization: Optional company/organization name for the contact.
+        email: Optional email address for the contact.
+        url: Optional website URL for the contact.
+    """
+
+    try:
+        contact_entry = {
+            "fullName": full_name,
+            "wuid": phone_number,
+            "phoneNumber": f"+{phone_number}"
+        }
+
+        if organization:
+            contact_entry["organization"] = organization
+
+        if email:
+            contact_entry["email"] = email
+
+        if url:
+            contact_entry["url"] = url
+
+        json_payload = {
+            "number": whatsapp_id,
+            "contact": [contact_entry]
+        }
+
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/message/sendContact/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json=json_payload
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+
+        structured_data = {
+            "message_id": raw_data.get("key", {}).get("id"),
+            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
+            "status": raw_data.get("status"),
+            "instance_id": raw_data.get("instanceId"),
+            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
+        }
+
+        return {"success": True, "data": structured_data}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+@mcp.tool()
 def send_quick_replies(
     account_instance: str,
     whatsapp_id: str,
