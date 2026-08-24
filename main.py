@@ -39,7 +39,8 @@ def send_text(
     account_instance: str,
     whatsapp_id: str,
     text: str,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
     ) -> dict:
     """
     Send a single WhatsApp bubble message
@@ -49,6 +50,10 @@ def send_text(
         whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         text: The message to send to the user in WhatsApp in a single bubble (eg. How can I help you today?)
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
     try:
         json_payload = {
@@ -58,6 +63,9 @@ def send_text(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendText/{account_instance}",
@@ -92,7 +100,8 @@ def send_image(
     whatsapp_id: str,
     image_url: str,
     caption: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
     ) -> dict:
     """
     Send a single WhatsApp image with an optional message caption
@@ -103,6 +112,10 @@ def send_image(
         image_url: The URL to the image you want to send.
         caption: This is an optional message you can send together with the image.
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
 
     try:
@@ -118,6 +131,9 @@ def send_image(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
@@ -151,7 +167,8 @@ def send_video(
     whatsapp_id: str,
     video_url: str,
     caption: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
     ) -> dict:
     """
     Send a single WhatsApp video with an optional message caption
@@ -162,6 +179,10 @@ def send_video(
         video_url: The URL to the video you want to send.
         caption: This is an optional message you can send together with the video.
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
 
     try:
@@ -177,6 +198,9 @@ def send_video(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
@@ -209,7 +233,8 @@ def send_document(
     document_url: str,
     file_name: str,
     caption: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
     ) -> dict:
     """
     Send a single WhatsApp PDF document with an optional message caption
@@ -221,6 +246,10 @@ def send_document(
         file_name: The file name to display to the recipient (e.g. "invoice.pdf").
         caption: This is an optional message you can send together with the document.
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
 
     try:
@@ -240,6 +269,9 @@ def send_document(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
@@ -270,7 +302,8 @@ def send_voice_note(
     account_instance: str,
     whatsapp_id: str,
     audio_url: str,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
     ) -> dict:
     """
     Send a whatsApp native voice note to the user.
@@ -280,6 +313,9 @@ def send_voice_note(
         whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         audio_url: The URL to the audio you want to send as voice note.
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "recording..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a longer voice note, or set to 0
+               to send instantly. This call blocks for the full duration, so don't set it longer than necessary.
     """
 
     try:
@@ -290,6 +326,9 @@ def send_voice_note(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{account_instance}",
@@ -502,7 +541,8 @@ def send_quick_replies(
     text_content: str,
     reply_buttons: list[dict],
     footer: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
 ) -> dict:
     """
     Send a WhatsApp message with up to 3 quick reply buttons.
@@ -518,6 +558,10 @@ def send_quick_replies(
                        Example: [{"displayText": "Small Package", "id": "small-package"}, {"displayText": "Large Package", "id": "large-package"}].
         footer: An optional line of small, muted gray text displayed below the main body or buttons (e.g., "Reply by clicking a button").
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
     try:
         # Programmatically inject the mandatory 'type': 'reply' into each button
@@ -544,6 +588,9 @@ def send_quick_replies(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
@@ -578,7 +625,8 @@ def send_cta_url(
     button_label: str,
     button_url: str,
     footer: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
 ) -> dict:
     """
     Send a WhatsApp message with a single clickable Call-To-Action (CTA) URL button.
@@ -592,6 +640,10 @@ def send_cta_url(
         button_url: This is the URL to the page that would open in the browser when clicked. E.g., "https://checkout.stripe.com/...".
         footer: An optional line of small, muted gray text displayed below the main body or buttons (e.g., "Clicking takes you to the payment page")
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
 
     try:
@@ -614,6 +666,9 @@ def send_cta_url(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
@@ -648,7 +703,8 @@ def send_list_message(
     button_label: str,
     sections: list[dict],
     footer: str,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    delay: Optional[int] = 1200
 ) -> dict:
     """
     Send an interactive WhatsApp list message with selectable rows grouped into sections natively for the Evolution API.
@@ -669,6 +725,10 @@ def send_list_message(
                   Example: [{"title": "Select Fruit", "rows": [{"title": "Apple", "rowId": "fruit_apple", "description": "Crisp and sweet"}]}]
         footer: A string line of helper text shown at the bottom of the message. (e.g., "The button opens a menu to select from").
         message_id: Optional ID of a message to quote/reply to. If provided, this message is sent as a quoted reply; otherwise it is sent standalone.
+        delay: Milliseconds to show a "typing..." indicator before this message is delivered, so it doesn't appear
+               out of nowhere. Defaults to 1200ms. Override with a longer value for a message that should feel
+               like it took more effort to compose, or set to 0 to send instantly. This call blocks for the full
+               duration, so don't set it longer than necessary.
     """
     try:
 
@@ -683,6 +743,9 @@ def send_list_message(
 
         if message_id:
             json_payload["quoted"] = {"key": {"id": message_id}}
+
+        if delay:
+            json_payload["delay"] = delay
 
         response = requests.post(
             f"{EVOLUTION_API_URL}/message/sendList/{account_instance}",
