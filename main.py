@@ -886,6 +886,43 @@ def get_whatsapp_number(
 
 
 
+@mcp.tool()
+def check_whatsapp_numbers(
+    account_instance: str,
+    phone_numbers: list[str]
+) -> dict:
+    """
+    Check whether one or more phone numbers are registered on WhatsApp, and resolve each to its WhatsApp ID.
+
+    Args:
+        account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
+        phone_numbers: A list of phone numbers to check, in international format without a leading + or spaces. Example: ["233593021563", "233596603296"]
+    """
+    try:
+        response = requests.post(
+            f"{EVOLUTION_API_URL}/chat/whatsappNumbers/{account_instance}",
+            headers={"apikey": EVOLUTION_API_KEY},
+            json={"numbers": phone_numbers}
+        )
+        response.raise_for_status()
+        raw_data = response.json()
+
+        results = [
+            {
+                "phone_number": entry.get("number"),
+                "whatsapp_id": entry.get("jid"),
+                "exists": entry.get("exists", False)
+            }
+            for entry in raw_data
+        ]
+
+        return {"success": True, "data": results}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
 
 
 @mcp.tool()
