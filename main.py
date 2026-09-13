@@ -27,6 +27,22 @@ def _to_utc_iso(unix_timestamp) -> Optional[str]:
         return None
     return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).isoformat()
 
+
+def _validate_config() -> None:
+    """Fail fast on startup if required env vars are missing, instead of every tool call
+    silently hitting an EVOLUTION_API_URL of 'None' or an unauthenticated Evolution API request."""
+    required = {
+        "EVOLUTION_API_URL": EVOLUTION_API_URL,
+        "EVOLUTION_API_KEY": EVOLUTION_API_KEY,
+        "MCP_API_KEY": API_KEY,
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise RuntimeError(
+            f"Missing required environment variable(s): {', '.join(missing)}. "
+            "Set them in your .env file before starting the server."
+        )
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         provided_key = request.headers.get("x-api-key")
@@ -1013,6 +1029,7 @@ def find_messages(
 
 
 if __name__ == '__main__':
+    _validate_config()
     port = int(os.environ.get("PORT", 8000))
     app = mcp.http_app(transport="streamable-http", middleware=[Middleware(APIKeyMiddleware)])
     config = uvicorn.Config(app, host="0.0.0.0", port=port)
