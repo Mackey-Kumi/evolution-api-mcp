@@ -112,3 +112,12 @@ Tools marked ✓ accept an optional `delay` (milliseconds, defaults to `1200`) t
 ## Deploying
 
 Any platform that runs a Python web process from a `Procfile` (Railway, etc.) works — set the four environment variables above in the platform's config and deploy. Make sure `EVOLUTION_API_URL` is reachable from wherever this server runs, and that your MCP client is configured with the `x-api-key` header.
+
+## Development
+
+Startup fails fast with a clear error if `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, or `MCP_API_KEY` aren't set — no `.env` is required to run the test suite, since tests mock the Evolution API and never make real network calls.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
