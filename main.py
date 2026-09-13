@@ -1,5 +1,6 @@
 import os
 import json
+import hmac
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
@@ -28,7 +29,12 @@ def _to_utc_iso(unix_timestamp) -> Optional[str]:
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.headers.get("x-api-key") != API_KEY:
+        provided_key = request.headers.get("x-api-key")
+        # Fail closed: if MCP_API_KEY isn't configured, no key can be "correct".
+        # A plain `!=` comparison would let a request with no header through in
+        # that case (None != None is False), so every check goes through
+        # compare_digest with an explicit not-configured guard first.
+        if not API_KEY or not provided_key or not hmac.compare_digest(provided_key, API_KEY):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         return await call_next(request)
     
