@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import uvicorn
 from starlette.middleware import Middleware
-import requests
+import httpx
 
 
 load_dotenv()
@@ -23,6 +23,11 @@ EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY")
 API_KEY = os.getenv("MCP_API_KEY")
 
 mcp = FastMCP("Evolution API MCP")
+
+# One shared async client for the process lifetime. The server is already fully
+# async (Starlette + uvicorn); a blocking `requests` call inside a tool would
+# stall the event loop and every other in-flight request for its duration.
+_http_client = httpx.AsyncClient()
 
 
 def _to_utc_iso(unix_timestamp) -> Optional[str]:
@@ -48,14 +53,14 @@ def _validate_config() -> None:
         )
 
 
-def _evolution_request(method: str, path: str, account_instance: str, json_payload: Optional[dict] = None):
+async def _evolution_request(method: str, path: str, account_instance: str, json_payload: Optional[dict] = None):
     """Call an Evolution API endpoint for a given instance and return the parsed JSON body.
 
     Every tool below was making this same requests.<verb>(url, headers=..., json=...) call
     with only the method, path, and payload changing; centralizing it here means the base
     URL, auth header, and error-raising behavior only need to be right in one place.
     """
-    response = requests.request(
+    response = await _http_client.request(
         method,
         f"{EVOLUTION_API_URL}{path}/{account_instance}",
         headers={"apikey": EVOLUTION_API_KEY},
@@ -97,7 +102,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
 
 @mcp.tool()
-def send_text(
+async def send_text(
     account_instance: str,
     whatsapp_id: str,
     text: str,
@@ -129,7 +134,7 @@ def send_text(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendText", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendText", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -140,7 +145,7 @@ def send_text(
 
 
 @mcp.tool()
-def send_image(
+async def send_image(
     account_instance: str,
     whatsapp_id: str,
     image_url: str,
@@ -180,7 +185,7 @@ def send_image(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -191,7 +196,7 @@ def send_image(
 
 
 @mcp.tool()
-def send_video(
+async def send_video(
     account_instance: str,
     whatsapp_id: str,
     video_url: str,
@@ -231,7 +236,7 @@ def send_video(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -241,7 +246,7 @@ def send_video(
 
 
 @mcp.tool()
-def send_document(
+async def send_document(
     account_instance: str,
     whatsapp_id: str,
     document_url: str,
@@ -287,7 +292,7 @@ def send_document(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -297,7 +302,7 @@ def send_document(
 
 
 @mcp.tool()
-def send_voice_note(
+async def send_voice_note(
     account_instance: str,
     whatsapp_id: str,
     audio_url: str,
@@ -329,7 +334,7 @@ def send_voice_note(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendWhatsAppAudio", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendWhatsAppAudio", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -339,7 +344,7 @@ def send_voice_note(
 
 
 @mcp.tool()
-def react_to_message(
+async def react_to_message(
     account_instance: str,
     whatsapp_id: str,
     message_id: str,
@@ -356,7 +361,7 @@ def react_to_message(
     """
 
     try:
-        _evolution_request(
+        await _evolution_request(
             "POST", "/message/sendReaction", account_instance,
             {
                 "key": {
@@ -376,7 +381,7 @@ def react_to_message(
 
 
 @mcp.tool()
-def delete_message(
+async def delete_message(
     account_instance: str,
     whatsapp_id: str,
     message_id: str
@@ -391,7 +396,7 @@ def delete_message(
     """
 
     try:
-        _evolution_request(
+        await _evolution_request(
             "DELETE", "/chat/deleteMessageForEveryone", account_instance,
             {
                 "id": message_id,
@@ -408,7 +413,7 @@ def delete_message(
 
 
 @mcp.tool()
-def edit_message(
+async def edit_message(
     account_instance: str,
     whatsapp_id: str,
     message_id: str,
@@ -425,7 +430,7 @@ def edit_message(
     """
 
     try:
-        _evolution_request(
+        await _evolution_request(
             "POST", "/chat/updateMessage", account_instance,
             {
                 "number": whatsapp_id,
@@ -446,7 +451,7 @@ def edit_message(
 
 
 @mcp.tool()
-def send_contact_card(
+async def send_contact_card(
     account_instance: str,
     whatsapp_id: str,
     full_name: str,
@@ -489,7 +494,7 @@ def send_contact_card(
             "contact": [contact_entry]
         }
 
-        raw_data = _evolution_request("POST", "/message/sendContact", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendContact", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -499,7 +504,7 @@ def send_contact_card(
 
 
 @mcp.tool()
-def send_quick_replies(
+async def send_quick_replies(
     account_instance: str,
     whatsapp_id: str,
     title: str,
@@ -557,7 +562,7 @@ def send_quick_replies(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendButtons", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendButtons", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -568,7 +573,7 @@ def send_quick_replies(
 
 
 @mcp.tool()
-def send_cta_url(
+async def send_cta_url(
     account_instance: str,
     whatsapp_id: str,
     title: str,
@@ -621,7 +626,7 @@ def send_cta_url(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendButtons", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendButtons", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -632,7 +637,7 @@ def send_cta_url(
 
 
 @mcp.tool()
-def send_list_message(
+async def send_list_message(
     account_instance: str,
     whatsapp_id: str,
     title: str,
@@ -684,7 +689,7 @@ def send_list_message(
         if delay:
             json_payload["delay"] = delay
 
-        raw_data = _evolution_request("POST", "/message/sendList", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendList", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -693,7 +698,7 @@ def send_list_message(
 
 
 @mcp.tool()
-def send_carousel(
+async def send_carousel(
     account_instance: str,
     whatsapp_id: str,
     main_body: str,
@@ -746,7 +751,7 @@ def send_carousel(
             "cards": formatted_cards
         }
 
-        raw_data = _evolution_request("POST", "/message/sendCarousel", account_instance, json_payload)
+        raw_data = await _evolution_request("POST", "/message/sendCarousel", account_instance, json_payload)
 
         return {"success": True, "data": _extract_message_result(raw_data)}
 
@@ -756,7 +761,7 @@ def send_carousel(
 
 
 @mcp.tool()
-def get_whatsapp_number(
+async def get_whatsapp_number(
     account_instance: str,
     whatsapp_id: str
 ) -> dict:
@@ -769,7 +774,7 @@ def get_whatsapp_number(
         whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
     """
     try:
-        raw_data = _evolution_request(
+        raw_data = await _evolution_request(
             "POST", "/chat/fetchBusinessProfile", account_instance, {"number": whatsapp_id}
         )
 
@@ -794,7 +799,7 @@ def get_whatsapp_number(
 
 
 @mcp.tool()
-def check_whatsapp_numbers(
+async def check_whatsapp_numbers(
     account_instance: str,
     phone_numbers: list[str]
 ) -> dict:
@@ -806,7 +811,7 @@ def check_whatsapp_numbers(
         phone_numbers: A list of phone numbers to check, in international format without a leading + or spaces. Example: ["233593021563", "233596603296"]
     """
     try:
-        raw_data = _evolution_request(
+        raw_data = await _evolution_request(
             "POST", "/chat/whatsappNumbers", account_instance, {"numbers": phone_numbers}
         )
 
@@ -829,7 +834,7 @@ def check_whatsapp_numbers(
 
 
 @mcp.tool()
-def find_messages(
+async def find_messages(
     account_instance: str,
     whatsapp_id: str,
     page: int = 1,
@@ -855,7 +860,7 @@ def find_messages(
             "offset": offset
         }
 
-        raw_data = _evolution_request("POST", "/chat/findMessages", account_instance, payload)
+        raw_data = await _evolution_request("POST", "/chat/findMessages", account_instance, payload)
 
         # Extract root-level pagination info
         message_data = raw_data.get("messages", {})
