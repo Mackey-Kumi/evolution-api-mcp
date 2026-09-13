@@ -1,6 +1,7 @@
 import os
 import json
 import hmac
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
@@ -13,6 +14,9 @@ import requests
 
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("evolution_api_mcp")
 
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL")
 EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY")
@@ -43,6 +47,42 @@ def _validate_config() -> None:
             "Set them in your .env file before starting the server."
         )
 
+
+def _evolution_request(method: str, path: str, account_instance: str, json_payload: Optional[dict] = None):
+    """Call an Evolution API endpoint for a given instance and return the parsed JSON body.
+
+    Every tool below was making this same requests.<verb>(url, headers=..., json=...) call
+    with only the method, path, and payload changing; centralizing it here means the base
+    URL, auth header, and error-raising behavior only need to be right in one place.
+    """
+    response = requests.request(
+        method,
+        f"{EVOLUTION_API_URL}{path}/{account_instance}",
+        headers={"apikey": EVOLUTION_API_KEY},
+        json=json_payload,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _extract_message_result(raw_data: dict) -> dict:
+    """Shape an Evolution API send-message response into the compact form every send_* tool returns."""
+    return {
+        "message_id": raw_data.get("key", {}).get("id"),
+        "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
+        "status": raw_data.get("status"),
+        "instance_id": raw_data.get("instanceId"),
+        "timestamp": _to_utc_iso(raw_data.get("messageTimestamp")),
+    }
+
+
+def _tool_error(tool_name: str, error: Exception) -> dict:
+    """Log the full exception server-side (previously silently discarded) and return the
+    same {"success": False, "error": str(e)} shape every tool already handed back to the agent."""
+    logger.exception("%s failed", tool_name)
+    return {"success": False, "error": str(error)}
+
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         provided_key = request.headers.get("x-api-key")
@@ -53,7 +93,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         if not API_KEY or not provided_key or not hmac.compare_digest(provided_key, API_KEY):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         return await call_next(request)
-    
+
 
 
 @mcp.tool()
@@ -89,29 +129,12 @@ def send_text(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendText/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
+        raw_data = _evolution_request("POST", "/message/sendText", account_instance, json_payload)
 
-        response.raise_for_status()
-
-        raw_data = response.json()
-
-        
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_text", e)
 
 
 
@@ -157,28 +180,12 @@ def send_image(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
-        
-        raw_data = response.json()
-        
-        # Safely extract high-value metadata from the root level
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        
-        return {"success": True, "data": structured_data}
-    
+        raw_data = _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
+
+        return {"success": True, "data": _extract_message_result(raw_data)}
+
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_image", e)
 
 
 
@@ -224,27 +231,12 @@ def send_video(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
-        raw_data = response.json()
-        
-        # Safely extract only what the model needs to confirm delivery
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        
-        return {"success": True, "data": structured_data}
+        raw_data = _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
+
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_video", e)
 
 
 
@@ -295,27 +287,12 @@ def send_document(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendMedia/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
+        raw_data = _evolution_request("POST", "/message/sendMedia", account_instance, json_payload)
 
-        raw_data = response.json()
-
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_document", e)
 
 
 
@@ -352,34 +329,20 @@ def send_voice_note(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
-        raw_data = response.json()
-        
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        
-        return {"success": True, "data": structured_data}
+        raw_data = _evolution_request("POST", "/message/sendWhatsAppAudio", account_instance, json_payload)
+
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_voice_note", e)
 
 
 
 @mcp.tool()
 def react_to_message(
-    account_instance: str, 
-    whatsapp_id: str, 
-    message_id: str, 
+    account_instance: str,
+    whatsapp_id: str,
+    message_id: str,
     emoji: str
     ) -> dict:
     """
@@ -389,28 +352,26 @@ def react_to_message(
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
         whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         message_id: The ID of the message you want to react to.
-        emoji: A single emoji you want to use to react to the message. 
+        emoji: A single emoji you want to use to react to the message.
     """
 
     try:
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendReaction/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json={
+        _evolution_request(
+            "POST", "/message/sendReaction", account_instance,
+            {
                 "key": {
-                "remoteJid": whatsapp_id, 
-                "fromMe": True,
-                "id": message_id
+                    "remoteJid": whatsapp_id,
+                    "fromMe": True,
+                    "id": message_id
                 },
                 "reaction": emoji
             }
         )
-        response.raise_for_status()
-        
+
         return {"success": True, "data": f"Reacted to {message_id} successfully with {emoji}"}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("react_to_message", e)
 
 
 
@@ -430,21 +391,19 @@ def delete_message(
     """
 
     try:
-        response = requests.delete(
-            f"{EVOLUTION_API_URL}/chat/deleteMessageForEveryone/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json={
+        _evolution_request(
+            "DELETE", "/chat/deleteMessageForEveryone", account_instance,
+            {
                 "id": message_id,
                 "remoteJid": whatsapp_id,
                 "fromMe": True
             }
         )
-        response.raise_for_status()
 
         return {"success": True, "data": f"Deleted message {message_id} successfully"}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("delete_message", e)
 
 
 
@@ -466,10 +425,9 @@ def edit_message(
     """
 
     try:
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/chat/updateMessage/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json={
+        _evolution_request(
+            "POST", "/chat/updateMessage", account_instance,
+            {
                 "number": whatsapp_id,
                 "key": {
                     "remoteJid": whatsapp_id,
@@ -479,12 +437,11 @@ def edit_message(
                 "text": new_text
             }
         )
-        response.raise_for_status()
 
         return {"success": True, "data": f"Updated message {message_id} successfully"}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("edit_message", e)
 
 
 
@@ -532,26 +489,12 @@ def send_contact_card(
             "contact": [contact_entry]
         }
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendContact/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
-        raw_data = response.json()
+        raw_data = _evolution_request("POST", "/message/sendContact", account_instance, json_payload)
 
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_contact_card", e)
 
 
 
@@ -614,26 +557,12 @@ def send_quick_replies(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
+        raw_data = _evolution_request("POST", "/message/sendButtons", account_instance, json_payload)
 
-        response.raise_for_status()
-        raw_data = response.json()
-
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_quick_replies", e)
 
 
 
@@ -692,26 +621,12 @@ def send_cta_url(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendButtons/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
+        raw_data = _evolution_request("POST", "/message/sendButtons", account_instance, json_payload)
 
-        response.raise_for_status()
-        raw_data = response.json()
-
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_cta_url", e)
 
 
 
@@ -769,43 +684,30 @@ def send_list_message(
         if delay:
             json_payload["delay"] = delay
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendList/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
-        raw_data = response.json()
+        raw_data = _evolution_request("POST", "/message/sendList", account_instance, json_payload)
 
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_list_message", e)
 
 
 @mcp.tool()
 def send_carousel(
-    account_instance: str, 
+    account_instance: str,
     whatsapp_id: str,
     main_body: str,
     cards: list[dict]
 ) -> dict:
     """
-    Send a swipeable WhatsApp carousel containing up to 10 product/info cards. 
+    Send a swipeable WhatsApp carousel containing up to 10 product/info cards.
     Each card can have up to 3 quick reply action buttons.
 
     Args:
         account_instance: The unique identifier of the WhatsApp account to send the message from, this is provided to you in your prompt.
         whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
         main_body: The text message intro shown above the whole carousel slider layout (e.g., "Check out this week's catalog!").
-        cards: A list of dict cards. MAXIMUM 10 cards allowed. 
+        cards: A list of dict cards. MAXIMUM 10 cards allowed.
                Each card dictionary MUST contain:
                - 'body': The primary message body text for this card slide.
                - 'footer': A mandatory string line text shown at the bottom of the card (e.g., price or category).
@@ -818,11 +720,11 @@ def send_carousel(
     """
     try:
         formatted_cards = []
-        
+
         # Enforce WhatsApp's native maximum limit of 10 slider cards safely
         for card in cards[:10]:
             formatted_buttons = []
-            
+
             # Enforce WhatsApp's native maximum limit of 3 quick replies per card card
             for btn in card.get("buttons", [])[:3]:
                 formatted_buttons.append({
@@ -830,7 +732,7 @@ def send_carousel(
                     "displayText": str(btn.get("text", ""))[:20], # Strict 20 char truncation guard
                     "id": str(btn.get("id", ""))
                 })
-                
+
             formatted_cards.append({
                 "body": card.get("body"),
                 "footer": card.get("footer"),
@@ -844,25 +746,12 @@ def send_carousel(
             "cards": formatted_cards
         }
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/message/sendCarousel/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=json_payload
-        )
-        response.raise_for_status()
-        raw_data = response.json()
+        raw_data = _evolution_request("POST", "/message/sendCarousel", account_instance, json_payload)
 
-        structured_data = {
-            "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
-            "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
-        }
-        return {"success": True, "data": structured_data}
+        return {"success": True, "data": _extract_message_result(raw_data)}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("send_carousel", e)
 
 
 
@@ -880,13 +769,9 @@ def get_whatsapp_number(
         whatsapp_id: The user's WhatsApp ID that  uniquely identifiers them. This is provided in your prompt. Example: 264724990148861@lid
     """
     try:
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/chat/fetchBusinessProfile/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json={"number": whatsapp_id}
+        raw_data = _evolution_request(
+            "POST", "/chat/fetchBusinessProfile", account_instance, {"number": whatsapp_id}
         )
-        response.raise_for_status()
-        raw_data = response.json()
 
         phone_number = None
         jid = raw_data.get("jid", "")
@@ -904,7 +789,7 @@ def get_whatsapp_number(
         }
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("get_whatsapp_number", e)
 
 
 
@@ -921,13 +806,9 @@ def check_whatsapp_numbers(
         phone_numbers: A list of phone numbers to check, in international format without a leading + or spaces. Example: ["233593021563", "233596603296"]
     """
     try:
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/chat/whatsappNumbers/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json={"numbers": phone_numbers}
+        raw_data = _evolution_request(
+            "POST", "/chat/whatsappNumbers", account_instance, {"numbers": phone_numbers}
         )
-        response.raise_for_status()
-        raw_data = response.json()
 
         results = [
             {
@@ -941,7 +822,7 @@ def check_whatsapp_numbers(
         return {"success": True, "data": results}
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("check_whatsapp_numbers", e)
 
 
 
@@ -974,13 +855,7 @@ def find_messages(
             "offset": offset
         }
 
-        response = requests.post(
-            f"{EVOLUTION_API_URL}/chat/findMessages/{account_instance}",
-            headers={"apikey": EVOLUTION_API_KEY},
-            json=payload
-        )
-        response.raise_for_status()
-        raw_data = response.json()
+        raw_data = _evolution_request("POST", "/chat/findMessages", account_instance, payload)
 
         # Extract root-level pagination info
         message_data = raw_data.get("messages", {})
@@ -995,7 +870,7 @@ def find_messages(
         for record in message_data.get("records", []):
             msg_type = record.get("messageType", "unknown")
             msg_content = record.get("message", {})
-            
+
             # Extract readable content based on the message type context
             text_body = ""
             if msg_type == "conversation":
@@ -1017,13 +892,13 @@ def find_messages(
             })
 
         return {
-            "success": True, 
-            "pagination": pagination_info, 
+            "success": True,
+            "pagination": pagination_info,
             "messages": structured_records
         }
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return _tool_error("find_messages", e)
 
 
 
