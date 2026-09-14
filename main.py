@@ -80,9 +80,7 @@ def send_text(
         
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
@@ -147,9 +145,7 @@ def send_image(
         # Safely extract high-value metadata from the root level
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
@@ -213,9 +209,7 @@ def send_video(
         # Safely extract only what the model needs to confirm delivery
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
@@ -284,9 +278,7 @@ def send_document(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
 
@@ -340,9 +332,7 @@ def send_voice_note(
         
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         
@@ -520,9 +510,7 @@ def send_contact_card(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
 
@@ -603,9 +591,7 @@ def send_quick_replies(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
@@ -681,9 +667,7 @@ def send_cta_url(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
@@ -757,9 +741,7 @@ def send_list_message(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
@@ -832,9 +814,7 @@ def send_carousel(
 
         structured_data = {
             "message_id": raw_data.get("key", {}).get("id"),
-            "whatsapp_id": raw_data.get("key", {}).get("remoteJid"),
-            "status": raw_data.get("status"),
-            "instance_id": raw_data.get("instanceId"),
+            "status": "sent",
             "timestamp": _to_utc_iso(raw_data.get("messageTimestamp"))
         }
         return {"success": True, "data": structured_data}
@@ -868,7 +848,7 @@ def get_whatsapp_number(
 
         phone_number = None
         jid = raw_data.get("jid", "")
-        if jid:
+        if jid.endswith("@s.whatsapp.net"):
             phone_number = jid.replace("@s.whatsapp.net", "")
 
         return {
